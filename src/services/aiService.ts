@@ -1,4 +1,9 @@
-import { improveBulletPoint as fallbackImproveBullet, generateBulletPointsForRole as fallbackGenerateBullets, generateSummary as fallbackGenerateSummary, generateCoverLetter as fallbackGenerateCoverLetter } from '../utils/aiAssistant';
+import {
+  improveBulletPoint as fallbackImproveBullet,
+  generateBulletPointsForRole as fallbackGenerateBullets,
+  generateSummary as fallbackGenerateSummary,
+  generateCoverLetter as fallbackGenerateCoverLetter
+} from '../utils/aiAssistant';
 import { ResumeData } from '../types/resume';
 
 export interface AiConfig {
@@ -16,21 +21,48 @@ export function getAiConfig(): AiConfig {
   };
 }
 
-export function getRequestEndpoint(path: string): string {
+let verifiedPrefix: string | null = null;
+
+export function getEndpointCandidates(path: string): string[] {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   const config = getAiConfig();
+  const candidates: string[] = [];
 
-  // If baseUrl is a relative path (e.g. /api/ai or /api/9router)
+  // Prioritize previously verified prefix
+  if (verifiedPrefix) {
+    const verifiedUrl = `${verifiedPrefix.replace(/\/+$/, '')}${cleanPath}`;
+    candidates.push(verifiedUrl);
+  }
+
+  // 1. Explicit relative path configured (e.g. /api/ai or /api/9router)
   if (config.baseUrl.startsWith('/')) {
-    return `${config.baseUrl.replace(/\/+$/, '')}${cleanPath}`;
+    const relBase = config.baseUrl.replace(/\/+$/, '');
+    const relUrl = `${relBase}${cleanPath}`;
+    if (!candidates.includes(relUrl)) candidates.push(relUrl);
+    return candidates;
   }
 
-  if (import.meta.env.DEV) {
-    return `/api/ai${cleanPath}`;
+  // 2. Local reverse proxy (/api/ai)
+  // Available in Vite dev (vite.config.ts) and Docker Nginx (nginx.conf)
+  // Guarantees NO CORS preflight errors and masks the remote AI URL
+  const proxyUrl = `/api/ai${cleanPath}`;
+  if (!candidates.includes(proxyUrl)) {
+    candidates.push(proxyUrl);
   }
 
+  // 3. Direct remote URL (for static hosting or direct browser access)
   const cleanBase = (config.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '');
-  return `${cleanBase}${cleanPath}`;
+  const directUrl = `${cleanBase}${cleanPath}`;
+  if (!candidates.includes(directUrl)) {
+    candidates.push(directUrl);
+  }
+
+  return candidates;
+}
+
+export function getRequestEndpoint(path: string): string {
+  const candidates = getEndpointCandidates(path);
+  return candidates[0] || path;
 }
 
 export interface AiStatusResult {
@@ -46,66 +78,135 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
   if (!config.apiKey || !config.apiKey.trim()) {
     return {
       status: 'disconnected',
-      message: 'API Key belum diset di .env (VITE_AI_API_KEY)',
+      message: 'API Key belum diset di .env / konfigurasi (VITE_AI_API_KEY)',
       model: config.model,
       baseUrl: config.baseUrl,
     };
   }
 
   const startTime = performance.now();
-  const endpoint = getRequestEndpoint('/models');
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const candidates = getEndpointCandidates('/chat/completions');
+  let lastErrorMessage = 'Gagal tersambung ke endpoint AI';
+  let lastStatus = 0;
 
-    const res = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${config.apiKey.trim()}`,
-      },
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
+  for (const endpoint of candidates) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const latencyMs = Math.round(performance.now() - startTime);
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.apiKey.trim()}`,
+        },
+        body: JSON.stringify({
+          model: config.model || 'gpt-4o-mini',
+          messages: [{ role: 'user', content: 'hi' }],
+          max_tokens: 1,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
 
-    if (!res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+
+      // If response is HTML (e.g. SPA fallback on static host without Nginx proxy), try next candidate
+      if (contentType.includes('text/html') || res.status === 404) {
+        continue;
+      }
+
+      const latencyMs = Math.round(performance.now() - startTime);
+
+      if (res.ok) {
+        // Success! Set verified prefix
+        if (endpoint.startsWith('/api/ai')) {
+          verifiedPrefix = '/api/ai';
+        } else {
+          verifiedPrefix = (config.baseUrl || '').replace(/\/+$/, '');
+        }
+
+        return {
+          status: 'connected',
+          latencyMs,
+          message: `AI Gateway connected (Model "${config.model}" siap)`,
+          model: config.model,
+          baseUrl: config.baseUrl,
+        };
+      }
+
+      // Non-200 response from AI Gateway
+      lastStatus = res.status;
       const errText = await res.text();
-      return {
-        status: 'disconnected',
-        latencyMs,
-        message: `HTTP ${res.status}: ${errText.slice(0, 100)}`,
-        model: config.model,
-        baseUrl: config.baseUrl,
-      };
+      let parsedMsg = errText.slice(0, 120);
+      try {
+        const json = JSON.parse(errText);
+        if (json.error?.message) {
+          parsedMsg = json.error.message;
+        }
+      } catch {}
+
+      if (res.status === 401) {
+        lastErrorMessage = 'HTTP 401: API Key tidak valid / Unauthorized';
+      } else if (res.status === 403) {
+        lastErrorMessage = `HTTP 403: Akses ditolak (${parsedMsg})`;
+      } else if (res.status === 404) {
+        lastErrorMessage = `HTTP 404: Model "${config.model}" atau endpoint tidak ditemukan`;
+      } else if (res.status === 429) {
+        lastErrorMessage = 'HTTP 429: Kuota habis / Rate Limit tercapai';
+      } else {
+        lastErrorMessage = `HTTP ${res.status}: ${parsedMsg}`;
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        lastErrorMessage = 'Connection timeout (10s)';
+      } else {
+        lastErrorMessage = err.message || 'Gagal tersambung (Network / CORS Error)';
+      }
     }
-
-    const data = await res.json().catch(() => null);
-    const availableModels: string[] = Array.isArray(data?.data) ? data.data.map((m: any) => m.id) : [];
-    const modelFound = availableModels.includes(config.model);
-
-    return {
-      status: 'connected',
-      latencyMs,
-      message: modelFound
-        ? `AI Gateway connected (Model "${config.model}" siap)`
-        : `AI Gateway connected (${availableModels.length} model aktif)`,
-      model: config.model,
-      baseUrl: config.baseUrl,
-    };
-  } catch (err: any) {
-    const isAbort = err.name === 'AbortError';
-    return {
-      status: 'disconnected',
-      message: isAbort ? 'Connection timeout (8s)' : (err.message || 'Gagal tersambung ke endpoint AI'),
-      model: config.model,
-      baseUrl: config.baseUrl,
-    };
   }
+
+  // Secondary Check: If /chat/completions failed, check /models as fallback
+  if (lastStatus === 404 || lastStatus === 0) {
+    const modelCandidates = getEndpointCandidates('/models');
+    for (const mEndpoint of modelCandidates) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(mEndpoint, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${config.apiKey.trim()}`,
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('text/html') || res.status === 404) continue;
+
+        if (res.ok) {
+          const latencyMs = Math.round(performance.now() - startTime);
+          return {
+            status: 'connected',
+            latencyMs,
+            message: `AI Gateway connected (Model "${config.model}")`,
+            model: config.model,
+            baseUrl: config.baseUrl,
+          };
+        }
+      } catch {}
+    }
+  }
+
+  return {
+    status: 'disconnected',
+    message: lastErrorMessage,
+    model: config.model,
+    baseUrl: config.baseUrl,
+  };
 }
 
 async function callSingleChatRequest(
-  endpoint: string,
   apiKey: string,
   model: string,
   systemPrompt: string,
@@ -113,74 +214,89 @@ async function callSingleChatRequest(
   maxTokens: number,
   timeoutMs: number
 ): Promise<string | null> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const candidates = getEndpointCandidates('/chat/completions');
 
-  try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey.trim()}`,
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: maxTokens,
-      }),
-    });
-    clearTimeout(timeoutId);
+  for (const endpoint of candidates) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (!res.ok) {
-      console.warn(`AI Gateway (${model}) response error:`, res.status);
-      return null;
-    }
-
-    const text = await res.text();
-
-    // 1. Try standard JSON response
     try {
-      const data = JSON.parse(text);
-      const content = data.choices?.[0]?.message?.content;
-      if (typeof content === 'string' && content.trim().length > 0) {
-        return content.trim();
-      }
-    } catch {
-      // Response is not standard JSON (likely SSE stream)
-    }
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey.trim()}`,
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.7,
+          max_tokens: maxTokens,
+        }),
+      });
+      clearTimeout(timeoutId);
 
-    // 2. Parse Server-Sent Events (SSE) chunks: "data: {...}"
-    const lines = text.split('\n');
-    let fullContent = '';
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith('data:') && !trimmed.includes('[DONE]')) {
-        const jsonStr = trimmed.replace(/^data:\s*/, '');
-        try {
-          const chunk = JSON.parse(jsonStr);
-          const delta = chunk.choices?.[0]?.delta?.content || chunk.choices?.[0]?.text || '';
-          fullContent += delta;
-        } catch {
-          // Ignore invalid JSON chunks
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/html') || res.status === 404) {
+        continue;
+      }
+
+      if (!res.ok) {
+        console.warn(`AI Gateway (${model}) response error on ${endpoint}:`, res.status);
+        continue;
+      }
+
+      // Mark verified prefix
+      if (endpoint.startsWith('/api/ai')) {
+        verifiedPrefix = '/api/ai';
+      }
+
+      const text = await res.text();
+
+      // 1. Try standard JSON response
+      try {
+        const data = JSON.parse(text);
+        const content = data.choices?.[0]?.message?.content;
+        if (typeof content === 'string' && content.trim().length > 0) {
+          return content.trim();
+        }
+      } catch {
+        // Response is not standard JSON (likely SSE stream)
+      }
+
+      // 2. Parse Server-Sent Events (SSE) chunks: "data: {...}"
+      const lines = text.split('\n');
+      let fullContent = '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data:') && !trimmed.includes('[DONE]')) {
+          const jsonStr = trimmed.replace(/^data:\s*/, '');
+          try {
+            const chunk = JSON.parse(jsonStr);
+            const delta = chunk.choices?.[0]?.delta?.content || chunk.choices?.[0]?.text || '';
+            fullContent += delta;
+          } catch {
+            // Ignore invalid JSON chunks
+          }
         }
       }
-    }
 
-    if (fullContent.trim().length > 0) {
-      return fullContent.trim();
-    }
+      if (fullContent.trim().length > 0) {
+        return fullContent.trim();
+      }
 
-    return null;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    console.warn(`AI Gateway (${model}) request failed:`, err);
-    return null;
+      return null;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.warn(`AI Gateway request to ${endpoint} failed:`, err);
+    }
   }
+
+  return null;
 }
 
 async function call9RouterChat(systemPrompt: string, userPrompt: string, maxTokens: number = 500): Promise<string | null> {
@@ -189,18 +305,16 @@ async function call9RouterChat(systemPrompt: string, userPrompt: string, maxToke
     return null;
   }
 
-  const endpoint = getRequestEndpoint('/chat/completions');
   const configuredModel = config.model || 'gpt-4o-mini';
 
-  // Attempt configured model (10s timeout)
+  // Attempt configured model (15s timeout)
   const result = await callSingleChatRequest(
-    endpoint,
     config.apiKey,
     configuredModel,
     systemPrompt,
     userPrompt,
     maxTokens,
-    10000
+    15000
   );
 
   return result;

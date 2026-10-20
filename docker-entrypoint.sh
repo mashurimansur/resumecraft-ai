@@ -13,11 +13,11 @@ EOF
 # If VITE_AI_BASE_URL is set to a remote gateway, dynamically update Nginx upstream proxy
 if [ -n "$VITE_AI_BASE_URL" ] && echo "$VITE_AI_BASE_URL" | grep -q "^http"; then
   TARGET_URL=$(echo "$VITE_AI_BASE_URL" | sed 's/\/*$//')/
-  TARGET_HOST=$(echo "$VITE_AI_BASE_URL" | sed -e 's|^[^/]*//||' -e 's|/.*$||' -e 's|:.*$||')
+  TARGET_HOST=$(echo "$VITE_AI_BASE_URL" | sed -e 's|^[^/]*//||' -e 's|/.*$||')
   
   if [ -f /etc/nginx/conf.d/default.conf ]; then
-    sed -i "s|proxy_pass https://api.openai.com/v1/;|proxy_pass ${TARGET_URL};|g" /etc/nginx/conf.d/default.conf
-    sed -i "s|proxy_set_header Host api.openai.com;|proxy_set_header Host ${TARGET_HOST};|g" /etc/nginx/conf.d/default.conf
+    sed -i -E "s|proxy_pass https?://[^;]+;|proxy_pass ${TARGET_URL};|g" /etc/nginx/conf.d/default.conf
+    sed -i -E "s|proxy_set_header Host [^;]+;|proxy_set_header Host ${TARGET_HOST};|g" /etc/nginx/conf.d/default.conf
   fi
 fi
 
