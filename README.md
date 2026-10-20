@@ -4,6 +4,7 @@
 
 ### Intelligent ATS Resume Builder & Career Copilot
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-resumecraftai.codehuri.my.id-059669?style=for-the-badge&logo=google-chrome&logoColor=white)](https://resumecraftai.codehuri.my.id/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.1-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
@@ -12,7 +13,9 @@
 
 **ResumeCraft AI** is a modern, privacy-first resume builder designed to help job seekers pass **Applicant Tracking Systems (ATS)** like Workday, Greenhouse, Lever, and Taleo. It pairs real-time ATS scoring with a dual-mode AI engine (cloud LLM via 9router + instant local algorithmic fallback) and an authentic 1:1 A4 document canvas.
 
-[✨ Features](#-key-features) • [🚀 Quick Start](#-quick-start) • [🤖 AI Configuration](#-ai-configuration) • [📐 ATS Engine](#-ats-optimization-engine) • [📁 Project Structure](#-project-structure)
+> 🌐 **Try it Live**: **[https://resumecraftai.codehuri.my.id/](https://resumecraftai.codehuri.my.id/)**
+
+[🌐 Live Demo](https://resumecraftai.codehuri.my.id/) • [✨ Features](#-key-features) • [🚀 Quick Start](#-quick-start) • [🏠 CasaOS Setup](#-option-c-casaos-installation-gui) • [🤖 AI Configuration](#-ai-configuration) • [📁 Project Structure](#-project-structure)
 
 </div>
 
@@ -58,16 +61,85 @@
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start & Installation
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) (version 18.0 or higher) OR [Docker & Docker Compose](https://www.docker.com/)
+Choose your preferred way to run or deploy ResumeCraft AI:
 
 ---
 
-### Option A: Instant Run via GitHub Container Registry (GHCR)
+### Option A: 🌐 Live Web App (No Installation Required)
 
-Run the prebuilt multi-platform container directly without needing Node.js or cloning the repository:
+You can try the fully deployed application immediately in your browser:
+👉 **[https://resumecraftai.codehuri.my.id/](https://resumecraftai.codehuri.my.id/)**
+
+- Zero setup needed.
+- Connects directly to the 9router AI gateway.
+- Auto-saves all changes securely in your browser's local storage.
+
+---
+
+### Option B: 🐳 Run with Docker Compose (Recommended)
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/mashurimansur/resumecraft-ai.git
+   cd resumecraft-ai
+   ```
+
+2. **Configure Environment Variables:**
+   ```bash
+   cp .env.example .env
+   # Edit .env and insert your VITE_AI_API_KEY
+   ```
+
+3. **Start with Docker Compose:**
+   ```bash
+   # Pull prebuilt image from GHCR and start:
+   docker compose up -d
+
+   # Or compile locally from source:
+   docker compose up -d --build
+   ```
+
+4. **Access the application:**
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+To stop the container:
+```bash
+docker compose down
+```
+
+---
+
+### Option C: 🏠 CasaOS Installation (GUI)
+
+ResumeCraft AI runs perfectly on **CasaOS** (Home Cloud, Proxmox VE, or Raspberry Pi):
+
+1. Open your **CasaOS Dashboard**.
+2. Click **`+`** (Install a customized app).
+3. Fill in the installation fields:
+   - **App Name**: `ResumeCraft AI`
+   - **Docker Image**: `ghcr.io/mashurimansur/resumecraft-ai:latest`
+   - **Title / Icon URL**: `https://raw.githubusercontent.com/mashurimansur/resumecraft-ai/main/public/favicon.svg` *(or any resume icon)*
+   - **Web UI**: `3000` *(or your chosen host port)*
+   - **Ports Configuration**:
+     | Host Port | Container Port | Protocol |
+     | :---: | :---: | :---: |
+     | `3000` *(or free port)* | **`80`** *(Required)* | `TCP` |
+   - **Environment Variables**:
+     | Name | Value | Description |
+     | :--- | :--- | :--- |
+     | `VITE_AI_BASE_URL` | `https://9router.codehuri.my.id/v1` | 9router or OpenAI gateway endpoint |
+     | `VITE_AI_API_KEY` | `your-api-key-here` | 9router or OpenAI API key |
+     | `VITE_AI_MODEL` | `ag/gemini-3.8-flash` | Target LLM model |
+4. Click **Submit**. CasaOS will pull the image and launch the container.
+5. Access the app directly from your CasaOS dashboard or at `http://<YOUR_CASAOS_IP>:3000`.
+
+---
+
+### Option D: ⚡ Instant Docker CLI via GHCR (No Clone)
+
+Run the prebuilt container directly without cloning the repo:
 
 ```bash
 docker run -d \
@@ -84,40 +156,7 @@ Access the app at [http://localhost:3000](http://localhost:3000).
 
 ---
 
-### Option B: Run with Docker Compose
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/mashurimansur/resumecraft-ai.git
-   cd resumecraft-ai
-   ```
-
-2. **Configure Environment Variables:**
-   ```bash
-   cp .env.example .env
-   # Add your 9router or OpenAI API key inside .env
-   ```
-
-3. **Start with Docker Compose:**
-   ```bash
-   # Pull from GHCR and start:
-   docker compose up -d
-
-   # Or build locally from source:
-   docker compose up -d --build
-   ```
-
-4. **Access the application:**
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-To stop the container:
-```bash
-docker compose down
-```
-
----
-
-### Option C: Local Node.js Development
+### Option E: 💻 Local Node.js Development
 
 1. **Clone & install dependencies:**
    ```bash
@@ -129,6 +168,7 @@ docker compose down
 2. **Configure Environment Variables:**
    ```bash
    cp .env.example .env
+   # Add your API credentials in .env
    ```
 
 3. **Start the development server:**
@@ -137,9 +177,7 @@ docker compose down
    ```
 
 4. **Open in your browser:**
-   ```
-   http://localhost:5173/
-   ```
+   Open [http://localhost:5173/](http://localhost:5173/).
 
 ---
 
