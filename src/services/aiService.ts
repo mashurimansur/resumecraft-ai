@@ -8,19 +8,28 @@ export interface AiConfig {
 }
 
 export function getAiConfig(): AiConfig {
+  const runtimeEnv = (typeof window !== 'undefined' && (window as any).__ENV__) || {};
   return {
-    baseUrl: import.meta.env.VITE_AI_BASE_URL || 'https://api.9router.com/v1',
-    apiKey: import.meta.env.VITE_AI_API_KEY || '',
-    model: import.meta.env.VITE_AI_MODEL || 'gpt-4o-mini',
+    baseUrl: (runtimeEnv.VITE_AI_BASE_URL || import.meta.env.VITE_AI_BASE_URL || 'https://api.9router.com/v1').trim(),
+    apiKey: (runtimeEnv.VITE_AI_API_KEY || import.meta.env.VITE_AI_API_KEY || '').trim(),
+    model: (runtimeEnv.VITE_AI_MODEL || import.meta.env.VITE_AI_MODEL || 'ag/gemini-3.8-flash').trim(),
   };
 }
 
 export function getRequestEndpoint(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const config = getAiConfig();
+
+  // If baseUrl is a relative path (e.g. /api/9router)
+  if (config.baseUrl.startsWith('/')) {
+    return `${config.baseUrl.replace(/\/+$/, '')}${cleanPath}`;
+  }
+
   if (import.meta.env.DEV) {
     return `/api/9router${cleanPath}`;
   }
-  const cleanBase = (import.meta.env.VITE_AI_BASE_URL || 'https://api.9router.com/v1').replace(/\/+$/, '');
+
+  const cleanBase = (config.baseUrl || 'https://api.9router.com/v1').replace(/\/+$/, '');
   return `${cleanBase}${cleanPath}`;
 }
 

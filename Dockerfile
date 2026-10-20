@@ -30,8 +30,10 @@ FROM nginx:1.27-alpine AS runner
 # Remove default Nginx welcome page and config
 RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
 
-# Copy custom Nginx configuration
+# Copy custom Nginx configuration and entrypoint
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Copy compiled SPA bundle from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -42,6 +44,8 @@ EXPOSE 80
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://localhost/health || exit 1
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Start Nginx in foreground
 CMD ["nginx", "-g", "daemon off;"]

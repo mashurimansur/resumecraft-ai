@@ -65,7 +65,26 @@
 
 ---
 
-### Option A: Run with Docker Compose (Recommended for Production)
+### Option A: Instant Run via GitHub Container Registry (GHCR)
+
+Run the prebuilt multi-platform container directly without needing Node.js or cloning the repository:
+
+```bash
+docker run -d \
+  --name resumecraft-ai \
+  -p 3000:80 \
+  -e VITE_AI_BASE_URL="https://9router.codehuri.my.id/v1" \
+  -e VITE_AI_API_KEY="your-api-key-here" \
+  -e VITE_AI_MODEL="ag/gemini-3.8-flash" \
+  --restart unless-stopped \
+  ghcr.io/mashurimansur/resumecraft-ai:latest
+```
+
+Access the app at [http://localhost:3000](http://localhost:3000).
+
+---
+
+### Option B: Run with Docker Compose
 
 1. **Clone the repository:**
    ```bash
@@ -79,8 +98,12 @@
    # Add your 9router or OpenAI API key inside .env
    ```
 
-3. **Build & Start with Docker Compose:**
+3. **Start with Docker Compose:**
    ```bash
+   # Pull from GHCR and start:
+   docker compose up -d
+
+   # Or build locally from source:
    docker compose up -d --build
    ```
 
@@ -94,7 +117,7 @@ docker compose down
 
 ---
 
-### Option B: Local Node.js Development
+### Option C: Local Node.js Development
 
 1. **Clone & install dependencies:**
    ```bash
