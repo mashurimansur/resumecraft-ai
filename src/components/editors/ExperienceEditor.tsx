@@ -361,7 +361,7 @@ export const ExperienceEditor: React.FC<ExperienceEditorProps> = ({ experiences,
                             onClick={() => handleAiImproveBullet(exp.id, bIdx, bullet, exp.role, exp.company)}
                             disabled={!bullet.trim() || isImprovingThis}
                             className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded border border-blue-200 transition-colors disabled:opacity-40"
-                            title="AI 9router Improve Bullet (Add metrics & power verbs)"
+                            title="AI Improve Bullet (Add metrics & power verbs)"
                           >
                             {isImprovingThis ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />

@@ -10,9 +10,9 @@ export interface AiConfig {
 export function getAiConfig(): AiConfig {
   const runtimeEnv = (typeof window !== 'undefined' && (window as any).__ENV__) || {};
   return {
-    baseUrl: (runtimeEnv.VITE_AI_BASE_URL || import.meta.env.VITE_AI_BASE_URL || 'https://api.9router.com/v1').trim(),
+    baseUrl: (runtimeEnv.VITE_AI_BASE_URL || import.meta.env.VITE_AI_BASE_URL || 'https://api.openai.com/v1').trim(),
     apiKey: (runtimeEnv.VITE_AI_API_KEY || import.meta.env.VITE_AI_API_KEY || '').trim(),
-    model: (runtimeEnv.VITE_AI_MODEL || import.meta.env.VITE_AI_MODEL || 'ag/gemini-3.8-flash').trim(),
+    model: (runtimeEnv.VITE_AI_MODEL || import.meta.env.VITE_AI_MODEL || 'gpt-4o-mini').trim(),
   };
 }
 
@@ -20,16 +20,16 @@ export function getRequestEndpoint(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   const config = getAiConfig();
 
-  // If baseUrl is a relative path (e.g. /api/9router)
+  // If baseUrl is a relative path (e.g. /api/ai or /api/9router)
   if (config.baseUrl.startsWith('/')) {
     return `${config.baseUrl.replace(/\/+$/, '')}${cleanPath}`;
   }
 
   if (import.meta.env.DEV) {
-    return `/api/9router${cleanPath}`;
+    return `/api/ai${cleanPath}`;
   }
 
-  const cleanBase = (config.baseUrl || 'https://api.9router.com/v1').replace(/\/+$/, '');
+  const cleanBase = (config.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '');
   return `${cleanBase}${cleanPath}`;
 }
 
@@ -88,8 +88,8 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
       status: 'connected',
       latencyMs,
       message: modelFound
-        ? `9router connected (Model "${config.model}" siap)`
-        : `9router connected (${availableModels.length} model aktif)`,
+        ? `AI Gateway connected (Model "${config.model}" siap)`
+        : `AI Gateway connected (${availableModels.length} model aktif)`,
       model: config.model,
       baseUrl: config.baseUrl,
     };
@@ -97,7 +97,7 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
     const isAbort = err.name === 'AbortError';
     return {
       status: 'disconnected',
-      message: isAbort ? 'Connection timeout (8s)' : (err.message || 'Gagal tersambung ke endpoint 9router'),
+      message: isAbort ? 'Connection timeout (8s)' : (err.message || 'Gagal tersambung ke endpoint AI'),
       model: config.model,
       baseUrl: config.baseUrl,
     };
@@ -137,7 +137,7 @@ async function callSingleChatRequest(
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      console.warn(`9router (${model}) response error:`, res.status);
+      console.warn(`AI Gateway (${model}) response error:`, res.status);
       return null;
     }
 
@@ -178,7 +178,7 @@ async function callSingleChatRequest(
     return null;
   } catch (err) {
     clearTimeout(timeoutId);
-    console.warn(`9router (${model}) request failed:`, err);
+    console.warn(`AI Gateway (${model}) request failed:`, err);
     return null;
   }
 }
@@ -190,10 +190,10 @@ async function call9RouterChat(systemPrompt: string, userPrompt: string, maxToke
   }
 
   const endpoint = getRequestEndpoint('/chat/completions');
-  const configuredModel = config.model || 'ag/gemini-3.8-flash-low';
+  const configuredModel = config.model || 'gpt-4o-mini';
 
   // Attempt configured model (10s timeout)
-  let result = await callSingleChatRequest(
+  const result = await callSingleChatRequest(
     endpoint,
     config.apiKey,
     configuredModel,
@@ -202,20 +202,6 @@ async function call9RouterChat(systemPrompt: string, userPrompt: string, maxToke
     maxTokens,
     10000
   );
-
-  // If the configured model timed out or failed and it wasn't the verified fast model, fallback to ag/gemini-3.8-flash-low
-  if (!result && configuredModel !== 'ag/gemini-3.8-flash-low') {
-    console.info(`Falling back to verified fast model (ag/gemini-3.8-flash-low)...`);
-    result = await callSingleChatRequest(
-      endpoint,
-      config.apiKey,
-      'ag/gemini-3.8-flash-low',
-      systemPrompt,
-      userPrompt,
-      maxTokens,
-      10000
-    );
-  }
 
   return result;
 }

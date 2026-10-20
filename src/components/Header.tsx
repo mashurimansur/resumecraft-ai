@@ -24,7 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const [aiStatus, setAiStatus] = useState<AiStatusResult>({
     status: 'checking',
-    message: 'Memeriksa koneksi 9router...',
+    message: 'Memeriksa koneksi AI Gateway...',
     model: aiConfig.model,
     baseUrl: aiConfig.baseUrl,
   });
@@ -239,7 +239,7 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          {/* 9router AI Connection Status Pill - Fixed Height & Compact */}
+          {/* AI Connection Status Pill - Fixed Height & Compact */}
           <div className="relative flex-shrink-0" ref={popoverRef}>
             <button
               onClick={() => setShowStatusPopover((prev) => !prev)}
@@ -250,7 +250,7 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100'
                   : 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100'
               }`}
-              title="Status Koneksi 9router AI (Klik untuk info & tes ping)"
+              title="Status Koneksi AI Gateway (Klik untuk info & tes ping)"
             >
               {aiStatus.status === 'connected' ? (
                 <>
@@ -279,7 +279,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-3">
                   <div className="flex items-center gap-2">
                     <Bot className="w-4 h-4 text-blue-600" />
-                    <span className="text-xs font-bold text-slate-800">Status Gateway 9router</span>
+                    <span className="text-xs font-bold text-slate-800">Status Gateway AI (OpenAI-Compatible)</span>
                   </div>
                   <button
                     onClick={() => setShowStatusPopover(false)}

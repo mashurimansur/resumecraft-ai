@@ -11,7 +11,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-**ResumeCraft AI** is a modern, privacy-first resume builder designed to help job seekers pass **Applicant Tracking Systems (ATS)** like Workday, Greenhouse, Lever, and Taleo. It pairs real-time ATS scoring with a dual-mode AI engine (cloud LLM via 9router + instant local algorithmic fallback) and an authentic 1:1 A4 document canvas.
+**ResumeCraft AI** is a modern, privacy-first resume builder designed to help job seekers pass **Applicant Tracking Systems (ATS)** like Workday, Greenhouse, Lever, and Taleo. It pairs real-time ATS scoring with a dual-mode AI engine (OpenAI-compatible cloud LLM + instant local algorithmic fallback) and an authentic 1:1 A4 document canvas.
 
 > 🌐 **Try it Live**: **[https://resumecraftai.codehuri.my.id/](https://resumecraftai.codehuri.my.id/)**
 
@@ -73,7 +73,7 @@ You can try the fully deployed application immediately in your browser:
 👉 **[https://resumecraftai.codehuri.my.id/](https://resumecraftai.codehuri.my.id/)**
 
 - Zero setup needed.
-- Connects directly to the 9router AI gateway.
+- Connects to an OpenAI-compatible AI gateway.
 - Auto-saves all changes securely in your browser's local storage.
 
 ---
@@ -129,9 +129,9 @@ ResumeCraft AI runs perfectly on **CasaOS** (Home Cloud, Proxmox VE, or Raspberr
    - **Environment Variables**:
      | Name | Value | Description |
      | :--- | :--- | :--- |
-     | `VITE_AI_BASE_URL` | `https://9router.codehuri.my.id/v1` | 9router or OpenAI gateway endpoint |
-     | `VITE_AI_API_KEY` | `your-api-key-here` | 9router or OpenAI API key |
-     | `VITE_AI_MODEL` | `ag/gemini-3.8-flash` | Target LLM model |
+     | `VITE_AI_BASE_URL` | `https://api.openai.com/v1` | OpenAI or any compatible AI gateway endpoint |
+     | `VITE_AI_API_KEY` | `your-api-key-here` | Your gateway API key |
+     | `VITE_AI_MODEL` | `gpt-4o-mini` | Target LLM model |
 4. Click **Submit**. CasaOS will pull the image and launch the container.
 5. Access the app directly from your CasaOS dashboard or at `http://<YOUR_CASAOS_IP>:3000`.
 
@@ -145,9 +145,9 @@ Run the prebuilt container directly without cloning the repo:
 docker run -d \
   --name resumecraft-ai \
   -p 3000:80 \
-  -e VITE_AI_BASE_URL="https://9router.codehuri.my.id/v1" \
+  -e VITE_AI_BASE_URL="https://api.openai.com/v1" \
   -e VITE_AI_API_KEY="your-api-key-here" \
-  -e VITE_AI_MODEL="ag/gemini-3.8-flash" \
+  -e VITE_AI_MODEL="gpt-4o-mini" \
   --restart unless-stopped \
   ghcr.io/mashurimansur/resumecraft-ai:latest
 ```
@@ -183,22 +183,22 @@ Access the app at [http://localhost:3000](http://localhost:3000).
 
 ## 🤖 AI Configuration
 
-ResumeCraft AI supports any OpenAI-compatible API gateway (such as **9router**, **OpenAI**, **OpenRouter**, or custom local LLM servers).
+ResumeCraft AI supports any OpenAI-compatible API gateway (such as **OpenAI**, **OpenRouter**, **9router**, or local LLM servers like **Ollama / vLLM / LocalAI**).
 
 Edit your `.env` file:
 
 ```env
-# AI Gateway Base URL (Defaults to 9router or OpenAI)
-VITE_AI_BASE_URL=https://9router.codehuri.my.id/v1
+# AI Gateway Base URL (Defaults to OpenAI or any OpenAI-compatible endpoint)
+VITE_AI_BASE_URL=https://api.openai.com/v1
 
 # Your API Key
 VITE_AI_API_KEY=your-api-key-here
 
-# Target LLM Model (e.g., ag/gemini-3.8-flash, gpt-4o-mini, claude-3-5-sonnet)
-VITE_AI_MODEL=ag/gemini-3.8-flash
+# Target LLM Model (e.g., gpt-4o-mini, claude-3-5-sonnet, gemini-2.0-flash)
+VITE_AI_MODEL=gpt-4o-mini
 ```
 
-> **Note**: In development mode, Vite's internal reverse-proxy (`/api/9router`) safely forwards requests to avoid CORS and browser header blocks. If no API key is provided, all AI actions seamlessly use the built-in offline algorithmic fallback.
+> **Note**: In development mode, Vite's internal reverse-proxy (`/api/ai`) safely forwards requests to avoid CORS and browser header blocks. If no API key is provided, all AI actions seamlessly use the built-in offline algorithmic fallback.
 
 ---
 

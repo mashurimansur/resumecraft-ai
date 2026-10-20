@@ -54,7 +54,7 @@ export const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ resume }) => {
             <span>AI Cover Letter Generator</span>
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Auto-generate a tailored cover letter powered by 9router AI.
+            Auto-generate a tailored cover letter powered by AI Copilot.
           </p>
         </div>
 

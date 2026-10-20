@@ -58,7 +58,7 @@ export const SummaryEditor: React.FC<SummaryEditorProps> = ({
             onClick={handleAiGenerate}
             disabled={isGenerating}
             className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
-            title="Auto-generate summary via 9router AI"
+            title="Auto-generate summary via AI Assistant"
           >
             {isGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-blue-600" />}
             <span>{isGenerating ? 'Generating...' : 'AI Generate'}</span>

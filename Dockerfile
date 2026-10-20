@@ -10,9 +10,9 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 # Pass build-time environment arguments (configurable via docker-compose build args)
-ARG VITE_AI_BASE_URL="https://9router.codehuri.my.id/v1"
+ARG VITE_AI_BASE_URL="https://api.openai.com/v1"
 ARG VITE_AI_API_KEY=""
-ARG VITE_AI_MODEL="ag/gemini-3.8-flash"
+ARG VITE_AI_MODEL="gpt-4o-mini"
 
 ENV VITE_AI_BASE_URL=$VITE_AI_BASE_URL
 ENV VITE_AI_API_KEY=$VITE_AI_API_KEY
