@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { ResumeData, AtsScoreResult } from '../types/resume';
-import { Download, Upload, Printer, Bot, ChevronRight, CheckCircle2, XCircle, Loader2, RefreshCw, X, ShieldCheck, Cpu, Globe, Check, RotateCcw } from 'lucide-react';
+import { Download, Upload, Printer, Bot, ChevronRight, CheckCircle2, XCircle, Loader2, RefreshCw, X, ShieldCheck, Cpu, Check, RotateCcw } from 'lucide-react';
 import { charlesBloombergResume, sophiaChenTechResume } from '../data/sampleResumes';
 import { checkAiStatus, getAiConfig, AiStatusResult } from '../services/aiService';
 
@@ -320,38 +320,29 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
 
                   {/* Environment Config Info (Read-Only) */}
-                  <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-200 space-y-1.5 font-mono text-[11px]">
+                  <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-200 space-y-1.5 text-[11px]">
                     <div className="flex items-center justify-between text-slate-600">
-                      <span className="flex items-center gap-1 font-sans text-slate-500">
-                        <Globe className="w-3 h-3 text-slate-400" /> Base URL:
+                      <span className="flex items-center gap-1.5 font-sans text-slate-500 font-medium">
+                        <Cpu className="w-3.5 h-3.5 text-blue-600" /> Model:
                       </span>
-                      <span className="text-slate-800 truncate max-w-[160px]" title={aiStatus.baseUrl}>
-                        {aiStatus.baseUrl}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-slate-600">
-                      <span className="flex items-center gap-1 font-sans text-slate-500">
-                        <Cpu className="w-3 h-3 text-slate-400" /> Model:
-                      </span>
-                      <span className="text-blue-700 font-bold">{aiStatus.model}</span>
+                      <span className="text-blue-700 font-mono font-bold">{aiStatus.model}</span>
                     </div>
 
                     {aiStatus.latencyMs !== undefined && (
                       <div className="flex items-center justify-between text-slate-600">
-                        <span className="flex items-center gap-1 font-sans text-slate-500">
+                        <span className="flex items-center gap-1.5 font-sans text-slate-500 font-medium">
                           ⚡ Latensi:
                         </span>
-                        <span className="text-emerald-700 font-bold">{aiStatus.latencyMs} ms</span>
+                        <span className="text-emerald-700 font-mono font-bold">{aiStatus.latencyMs} ms</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Instructions */}
-                  <div className="flex items-start gap-1.5 text-[11px] text-slate-500 bg-amber-50 border border-amber-200/60 p-2 rounded-lg">
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                  {/* Security Note */}
+                  <div className="flex items-start gap-1.5 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 p-2 rounded-lg">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
                     <span>
-                      Konfigurasi otomatis dibaca dari file <code className="font-mono text-amber-800 font-bold">.env</code>.
+                      Koneksi gateway aman. URL dan kredensial privat disembunyikan.
                     </span>
                   </div>
 
