@@ -61,10 +61,11 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (version 18.0 or higher recommended)
-- [npm](https://www.npmjs.com/) or [pnpm](https://pnpm.io/) / [yarn](https://yarnpkg.com/)
+- [Node.js](https://nodejs.org/) (version 18.0 or higher) OR [Docker & Docker Compose](https://www.docker.com/)
 
-### Installation
+---
+
+### Option A: Run with Docker Compose (Recommended for Production)
 
 1. **Clone the repository:**
    ```bash
@@ -72,22 +73,47 @@
    cd resumecraft-ai
    ```
 
-2. **Install dependencies:**
+2. **Configure Environment Variables:**
    ```bash
+   cp .env.example .env
+   # Add your 9router or OpenAI API key inside .env
+   ```
+
+3. **Build & Start with Docker Compose:**
+   ```bash
+   docker compose up -d --build
+   ```
+
+4. **Access the application:**
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+To stop the container:
+```bash
+docker compose down
+```
+
+---
+
+### Option B: Local Node.js Development
+
+1. **Clone & install dependencies:**
+   ```bash
+   git clone https://github.com/mashurimansur/resumecraft-ai.git
+   cd resumecraft-ai
    npm install
    ```
 
-3. **Configure Environment Variables:**
+2. **Configure Environment Variables:**
    ```bash
    cp .env.example .env
    ```
 
-4. **Start the development server:**
+3. **Start the development server:**
    ```bash
    npm run dev
    ```
 
-5. **Open in your browser:**
+4. **Open in your browser:**
    ```
    http://localhost:5173/
    ```
