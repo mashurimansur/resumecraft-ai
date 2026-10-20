@@ -29,6 +29,49 @@ export const Header: React.FC<HeaderProps> = ({
     baseUrl: aiConfig.baseUrl,
   });
   const [showStatusPopover, setShowStatusPopover] = useState(false);
+  const [hasBackup, setHasBackup] = useState<boolean>(() => {
+    try {
+      return !!localStorage.getItem('resumecraft_backup_draft');
+    } catch {
+      return false;
+    }
+  });
+
+  const handleLoadSample = (sampleData: ResumeData, sampleName: string) => {
+    if (resume.id === sampleData.id) return;
+
+    const confirmed = window.confirm(
+      `⚠️ PERINGATAN:\n\nMemuat contoh profil "${sampleName}" akan menimpa teks resume yang sedang Anda kerjakan.\n\n` +
+      `Draft resume Anda saat ini akan di-backup otomatis agar bisa dipulihkan kembali sewaktu-waktu.\n\n` +
+      `Apakah Anda yakin ingin memuat contoh resume ini?`
+    );
+
+    if (confirmed) {
+      try {
+        localStorage.setItem('resumecraft_backup_draft', JSON.stringify(resume));
+        setHasBackup(true);
+      } catch (e) {
+        console.warn('Failed to backup resume:', e);
+      }
+      setResume(sampleData);
+    }
+  };
+
+  const handleRestoreBackup = () => {
+    try {
+      const backupStr = localStorage.getItem('resumecraft_backup_draft');
+      if (backupStr) {
+        const parsed = JSON.parse(backupStr);
+        if (window.confirm('Pulihkan draft resume Anda sebelum memuat contoh?')) {
+          setResume(parsed);
+          localStorage.removeItem('resumecraft_backup_draft');
+          setHasBackup(false);
+        }
+      }
+    } catch (e) {
+      alert('Gagal memulihkan draft.');
+    }
+  };
 
   const refreshAiStatus = async () => {
     setAiStatus((prev) => ({ ...prev, status: 'checking', message: 'Menguji koneksi...' }));
@@ -127,36 +170,58 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right: Consolidated Controls Toolbar */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Sample Switcher (Large Screens) */}
-          <div className="hidden xl:flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs flex-shrink-0">
-            <button
-              onClick={() => setResume(charlesBloombergResume)}
-              className={`px-2 py-1 rounded text-xs transition-colors ${
-                resume.id === charlesBloombergResume.id ? 'bg-white text-slate-900 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Executive
-            </button>
-            <button
-              onClick={() => setResume(sophiaChenTechResume)}
-              className={`px-2 py-1 rounded text-xs transition-colors ${
-                resume.id === sophiaChenTechResume.id ? 'bg-white text-slate-900 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Developer
-            </button>
-            <button
-              onClick={() => {
-                if (window.confirm('Reset data resume dan kembalikan ke template default?')) {
-                  localStorage.removeItem('resumecraft_resume_data_v1');
-                  setResume(charlesBloombergResume);
-                }
-              }}
-              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-200/80 rounded transition-colors"
-              title="Reset data ke default"
-            >
-              <RotateCcw className="w-3 h-3" />
-            </button>
+          {/* Sample Switcher with Safety Backup & Confirmation */}
+          <div className="hidden xl:flex items-center gap-1.5 flex-shrink-0">
+            {hasBackup && (
+              <button
+                onClick={handleRestoreBackup}
+                className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+                title="Kembalikan draft resume Anda sebelum diganti contoh"
+              >
+                <RotateCcw className="w-3 h-3 text-amber-600" />
+                <span>Pulihkan Draft</span>
+              </button>
+            )}
+
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+              <span className="text-[10px] text-slate-400 font-bold px-1.5 hidden 2xl:inline">
+                Contoh:
+              </span>
+              <button
+                onClick={() => handleLoadSample(charlesBloombergResume, 'Executive')}
+                className={`px-2 py-1 rounded text-xs transition-colors ${
+                  resume.id === charlesBloombergResume.id ? 'bg-white text-slate-900 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Muat contoh resume profil Executive"
+              >
+                Executive
+              </button>
+              <button
+                onClick={() => handleLoadSample(sophiaChenTechResume, 'Developer')}
+                className={`px-2 py-1 rounded text-xs transition-colors ${
+                  resume.id === sophiaChenTechResume.id ? 'bg-white text-slate-900 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Muat contoh resume profil Developer"
+              >
+                Developer
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm('Reset data resume dan kembalikan ke template default? Draft Anda saat ini akan di-backup.')) {
+                    try {
+                      localStorage.setItem('resumecraft_backup_draft', JSON.stringify(resume));
+                      setHasBackup(true);
+                    } catch {}
+                    localStorage.removeItem('resumecraft_resume_data_v1');
+                    setResume(charlesBloombergResume);
+                  }
+                }}
+                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-200/80 rounded transition-colors"
+                title="Reset data ke default"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            </div>
           </div>
 
           {/* ATS Score Pill - Fixed Height & Compact */}
