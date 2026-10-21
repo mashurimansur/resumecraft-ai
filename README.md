@@ -154,6 +154,9 @@ docker run -d \
 
 Access the app at [http://localhost:3000](http://localhost:3000).
 
+> [!TIP]
+> **Automated Image Releases**: Docker images (`linux/amd64` & `linux/arm64`) are automatically built and published to GHCR every time a new **GitHub Release** is published in this repository.
+
 ---
 
 ### Option E: 💻 Local Node.js Development
