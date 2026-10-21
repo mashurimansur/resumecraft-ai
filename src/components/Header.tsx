@@ -78,6 +78,15 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const handleDismissBackup = () => {
+    try {
+      localStorage.removeItem('resumecraft_backup_draft');
+    } catch (e) {
+      console.warn('Failed to remove backup draft:', e);
+    }
+    setHasBackup(false);
+  };
+
   const refreshAiStatus = async () => {
     setAiStatus((prev) => ({ ...prev, status: 'checking', message: 'Menguji koneksi...' }));
     const result = await checkAiStatus();
@@ -203,14 +212,27 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Sample Switcher with Safety Backup & Confirmation */}
           <div className="hidden xl:flex items-center gap-1.5 flex-shrink-0">
             {hasBackup && (
-              <button
-                onClick={handleRestoreBackup}
-                className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
-                title="Kembalikan draft resume Anda sebelum diganti contoh"
-              >
-                <RotateCcw className="w-3 h-3 text-amber-600" />
-                <span>Pulihkan Draft</span>
-              </button>
+              <div className="flex items-center bg-amber-50 hover:bg-amber-100/70 border border-amber-300 rounded-lg p-0.5 shadow-2xs transition-colors">
+                <button
+                  type="button"
+                  onClick={handleRestoreBackup}
+                  className="px-2 py-1 text-amber-800 hover:text-amber-900 rounded-md text-xs font-bold flex items-center gap-1.5 transition-colors"
+                  title="Kembalikan draft resume Anda sebelum diganti contoh"
+                >
+                  <RotateCcw className="w-3 h-3 text-amber-600" />
+                  <span>Pulihkan Draft</span>
+                </button>
+                <div className="w-[1px] h-3.5 bg-amber-300 mx-0.5" />
+                <button
+                  type="button"
+                  onClick={handleDismissBackup}
+                  className="p-1 text-amber-600 hover:text-amber-900 hover:bg-amber-200/60 rounded-md transition-colors"
+                  title="Abaikan dan hapus draft cadangan ini (hilangkan tombol)"
+                  aria-label="Hapus backup draft"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
             )}
 
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
