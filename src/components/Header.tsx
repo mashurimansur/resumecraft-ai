@@ -360,6 +360,15 @@ export const Header: React.FC<HeaderProps> = ({
                           <span className="text-blue-700 font-mono font-bold">{aiStatus.model}</span>
                         </div>
 
+                        {aiConfig.isServerAuth && !aiConfig.apiKey && (
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span className="flex items-center gap-1.5 font-sans text-slate-500 font-medium">
+                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Kredensial:
+                            </span>
+                            <span className="text-emerald-700 font-sans font-semibold">Tersimpan aman di server</span>
+                          </div>
+                        )}
+
                         {aiStatus.latencyMs !== undefined && (
                           <div className="flex items-center justify-between text-slate-600">
                             <span className="flex items-center gap-1.5 font-sans text-slate-500 font-medium">
@@ -432,14 +441,14 @@ export const Header: React.FC<HeaderProps> = ({
 
                       <div>
                         <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                          API Key
+                          API Key {aiConfig.isServerAuth && <span className="text-emerald-600 font-normal">(Aktif dari container)</span>}
                         </label>
                         <div className="relative">
                           <input
                             type={showApiKey ? 'text' : 'password'}
                             value={editApiKey}
                             onChange={(e) => setEditApiKey(e.target.value)}
-                            placeholder="sk-..."
+                            placeholder={aiConfig.isServerAuth ? "Dikelola aman di server (kosongkan jika pakai bawaan)" : "sk-..."}
                             className="w-full px-2.5 py-1.5 pr-8 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-slate-800"
                           />
                           <button
@@ -450,6 +459,11 @@ export const Header: React.FC<HeaderProps> = ({
                             {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                           </button>
                         </div>
+                        {aiConfig.isServerAuth && (
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            ✨ Kredensial container disembunyikan untuk privasi. Masukkan jika ingin override.
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -460,7 +474,7 @@ export const Header: React.FC<HeaderProps> = ({
                           type="text"
                           value={editBaseUrl}
                           onChange={(e) => setEditBaseUrl(e.target.value)}
-                          placeholder="/api/ai atau https://api.openai.com/v1"
+                          placeholder="/api/ai (Default proxy container)"
                           className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-slate-800"
                         />
                       </div>

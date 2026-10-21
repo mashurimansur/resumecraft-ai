@@ -10,6 +10,7 @@ export interface AiConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
+  isServerAuth?: boolean;
 }
 
 export function getAiConfig(): AiConfig {
@@ -22,11 +23,13 @@ export function getAiConfig(): AiConfig {
   }
 
   const runtimeEnv = (typeof window !== 'undefined' && (window as any).__ENV__) || {};
+  const isServerAuth = Boolean(runtimeEnv.VITE_AI_SERVER_AUTH);
 
   return {
-    baseUrl: (localConfig.baseUrl || runtimeEnv.VITE_AI_BASE_URL || import.meta.env.VITE_AI_BASE_URL || 'https://api.openai.com/v1').trim(),
+    baseUrl: (localConfig.baseUrl || runtimeEnv.VITE_AI_BASE_URL || import.meta.env.VITE_AI_BASE_URL || '/api/ai').trim(),
     apiKey: (localConfig.apiKey || runtimeEnv.VITE_AI_API_KEY || import.meta.env.VITE_AI_API_KEY || '').trim(),
-    model: (localConfig.model || runtimeEnv.VITE_AI_MODEL || import.meta.env.VITE_AI_MODEL || 'gpt-4o-mini').trim(),
+    model: (localConfig.model || runtimeEnv.VITE_AI_MODEL || import.meta.env.VITE_AI_MODEL || 'ag/gemini-3.8-flash').trim(),
+    isServerAuth,
   };
 }
 
@@ -105,7 +108,7 @@ export interface AiStatusResult {
 
 export async function checkAiStatus(): Promise<AiStatusResult> {
   const config = getAiConfig();
-  if (!config.apiKey || !config.apiKey.trim()) {
+  if (!config.apiKey && !config.isServerAuth) {
     return {
       status: 'disconnected',
       message: 'API Key belum diset di konfigurasi (VITE_AI_API_KEY)',
@@ -134,12 +137,16 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 20000);
 
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (config.apiKey && config.apiKey.trim()) {
+          headers['Authorization'] = `Bearer ${config.apiKey.trim()}`;
+        }
+
         const res = await fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.apiKey.trim()}`,
-          },
+          headers,
           body: JSON.stringify({
             model: testModel,
             messages: [{ role: 'user', content: 'hi' }],
@@ -289,12 +296,16 @@ async function callSingleChatRequest(
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       try {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (apiKey && apiKey.trim()) {
+          headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+        }
+
         const res = await fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey.trim()}`,
-          },
+          headers,
           signal: controller.signal,
           body: JSON.stringify({
             model: targetModel,
@@ -377,11 +388,11 @@ async function callSingleChatRequest(
 
 async function call9RouterChat(systemPrompt: string, userPrompt: string, maxTokens: number = 500): Promise<string | null> {
   const config = getAiConfig();
-  if (!config.apiKey || !config.apiKey.trim()) {
+  if (!config.apiKey && !config.isServerAuth) {
     return null;
   }
 
-  const configuredModel = config.model || 'gpt-4o-mini';
+  const configuredModel = config.model || 'ag/gemini-3.8-flash';
 
   // Attempt configured model (35s timeout)
   const result = await callSingleChatRequest(
