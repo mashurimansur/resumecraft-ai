@@ -16,8 +16,10 @@ if [ -n "$VITE_AI_BASE_URL" ] && echo "$VITE_AI_BASE_URL" | grep -q "^http"; the
   TARGET_HOST=$(echo "$VITE_AI_BASE_URL" | sed -e 's|^[^/]*//||' -e 's|/.*$||')
   
   if [ -f /etc/nginx/conf.d/default.conf ]; then
-    sed -i -E "s|proxy_pass https?://[^;]+;|proxy_pass ${TARGET_URL};|g" /etc/nginx/conf.d/default.conf
-    sed -i -E "s|proxy_set_header Host [^;]+;|proxy_set_header Host ${TARGET_HOST};|g" /etc/nginx/conf.d/default.conf
+    sed -i.bak \
+      -e "s|proxy_pass .*|proxy_pass ${TARGET_URL};|g" \
+      -e "s|proxy_set_header Host .*|proxy_set_header Host ${TARGET_HOST};|g" \
+      /etc/nginx/conf.d/default.conf && rm -f /etc/nginx/conf.d/default.conf.bak
   fi
 fi
 

@@ -13,12 +13,42 @@ export interface AiConfig {
 }
 
 export function getAiConfig(): AiConfig {
+  let localConfig: Partial<AiConfig> = {};
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('resumecraft_ai_config');
+      if (saved) localConfig = JSON.parse(saved);
+    } catch {}
+  }
+
   const runtimeEnv = (typeof window !== 'undefined' && (window as any).__ENV__) || {};
+
   return {
-    baseUrl: (runtimeEnv.VITE_AI_BASE_URL || import.meta.env.VITE_AI_BASE_URL || 'https://api.openai.com/v1').trim(),
-    apiKey: (runtimeEnv.VITE_AI_API_KEY || import.meta.env.VITE_AI_API_KEY || '').trim(),
-    model: (runtimeEnv.VITE_AI_MODEL || import.meta.env.VITE_AI_MODEL || 'gpt-4o-mini').trim(),
+    baseUrl: (localConfig.baseUrl || runtimeEnv.VITE_AI_BASE_URL || import.meta.env.VITE_AI_BASE_URL || 'https://api.openai.com/v1').trim(),
+    apiKey: (localConfig.apiKey || runtimeEnv.VITE_AI_API_KEY || import.meta.env.VITE_AI_API_KEY || '').trim(),
+    model: (localConfig.model || runtimeEnv.VITE_AI_MODEL || import.meta.env.VITE_AI_MODEL || 'gpt-4o-mini').trim(),
   };
+}
+
+export function saveAiConfig(config: Partial<AiConfig>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getAiConfig();
+    const updated = {
+      ...current,
+      ...config,
+    };
+    localStorage.setItem('resumecraft_ai_config', JSON.stringify(updated));
+  } catch (err) {
+    console.error('Failed to save AI config to localStorage:', err);
+  }
+}
+
+export function resetAiConfig(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('resumecraft_ai_config');
+  } catch {}
 }
 
 let verifiedPrefix: string | null = null;
@@ -78,7 +108,7 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
   if (!config.apiKey || !config.apiKey.trim()) {
     return {
       status: 'disconnected',
-      message: 'API Key belum diset di .env / konfigurasi (VITE_AI_API_KEY)',
+      message: 'API Key belum diset di konfigurasi (VITE_AI_API_KEY)',
       model: config.model,
       baseUrl: config.baseUrl,
     };
@@ -89,79 +119,106 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
   let lastErrorMessage = 'Gagal tersambung ke endpoint AI';
   let lastStatus = 0;
 
+  // Potential models to try if the current model gives 404 (model_not_found)
+  const modelsToTest = [
+    config.model,
+    ...(config.model !== 'ag/gemini-3.8-flash' ? ['ag/gemini-3.8-flash'] : []),
+    ...(config.model !== 'gemini-2.0-flash' ? ['gemini-2.0-flash'] : []),
+    ...(config.model !== 'gpt-4o-mini' ? ['gpt-4o-mini'] : []),
+  ];
+
   for (const endpoint of candidates) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.apiKey.trim()}`,
-        },
-        body: JSON.stringify({
-          model: config.model || 'gpt-4o-mini',
-          messages: [{ role: 'user', content: 'hi' }],
-          max_tokens: 1,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      const contentType = res.headers.get('content-type') || '';
-
-      // If response is HTML (e.g. SPA fallback on static host without Nginx proxy), try next candidate
-      if (contentType.includes('text/html') || res.status === 404) {
-        continue;
-      }
-
-      const latencyMs = Math.round(performance.now() - startTime);
-
-      if (res.ok) {
-        // Success! Set verified prefix
-        if (endpoint.startsWith('/api/ai')) {
-          verifiedPrefix = '/api/ai';
-        } else {
-          verifiedPrefix = (config.baseUrl || '').replace(/\/+$/, '');
-        }
-
-        return {
-          status: 'connected',
-          latencyMs,
-          message: `AI Gateway connected (Model "${config.model}" siap)`,
-          model: config.model,
-          baseUrl: config.baseUrl,
-        };
-      }
-
-      // Non-200 response from AI Gateway
-      lastStatus = res.status;
-      const errText = await res.text();
-      let parsedMsg = errText.slice(0, 120);
+    for (let i = 0; i < modelsToTest.length; i++) {
+      const testModel = modelsToTest[i];
       try {
-        const json = JSON.parse(errText);
-        if (json.error?.message) {
-          parsedMsg = json.error.message;
-        }
-      } catch {}
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      if (res.status === 401) {
-        lastErrorMessage = 'HTTP 401: API Key tidak valid / Unauthorized';
-      } else if (res.status === 403) {
-        lastErrorMessage = `HTTP 403: Akses ditolak (${parsedMsg})`;
-      } else if (res.status === 404) {
-        lastErrorMessage = `HTTP 404: Model "${config.model}" atau endpoint tidak ditemukan`;
-      } else if (res.status === 429) {
-        lastErrorMessage = 'HTTP 429: Kuota habis / Rate Limit tercapai';
-      } else {
-        lastErrorMessage = `HTTP ${res.status}: ${parsedMsg}`;
-      }
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        lastErrorMessage = 'Connection timeout (10s)';
-      } else {
-        lastErrorMessage = err.message || 'Gagal tersambung (Network / CORS Error)';
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.apiKey.trim()}`,
+          },
+          body: JSON.stringify({
+            model: testModel,
+            messages: [{ role: 'user', content: 'hi' }],
+            max_tokens: 1,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        const contentType = res.headers.get('content-type') || '';
+
+        // If response is HTML (e.g. SPA fallback on static host without Nginx proxy), try next endpoint
+        if (contentType.includes('text/html')) {
+          break;
+        }
+
+        const latencyMs = Math.round(performance.now() - startTime);
+
+        if (res.ok) {
+          // Success! Set verified prefix
+          if (endpoint.startsWith('/api/ai')) {
+            verifiedPrefix = '/api/ai';
+          } else {
+            verifiedPrefix = (config.baseUrl || '').replace(/\/+$/, '');
+          }
+
+          // If fallback model succeeded instead of initial model, save it so future calls use it
+          if (testModel !== config.model) {
+            saveAiConfig({ model: testModel });
+          }
+
+          return {
+            status: 'connected',
+            latencyMs,
+            message: testModel !== config.model
+              ? `AI Gateway connected (Beralih ke model aktif "${testModel}")`
+              : `AI Gateway connected (Model "${testModel}" siap)`,
+            model: testModel,
+            baseUrl: config.baseUrl,
+          };
+        }
+
+        // Non-200 response from AI Gateway
+        lastStatus = res.status;
+        const errText = await res.text();
+        let parsedMsg = errText.slice(0, 120);
+        try {
+          const json = JSON.parse(errText);
+          if (json.error?.message) {
+            parsedMsg = json.error.message;
+          }
+        } catch {}
+
+        // If 404 (model_not_found), try next model candidate
+        if (res.status === 404 || parsedMsg.toLowerCase().includes('model_not_found') || parsedMsg.toLowerCase().includes('credentials')) {
+          lastErrorMessage = `Model "${testModel}" tidak aktif di gateway ini (${parsedMsg})`;
+          continue;
+        }
+
+        if (res.status === 401) {
+          lastErrorMessage = 'HTTP 401: API Key tidak valid / Unauthorized';
+          break;
+        } else if (res.status === 403) {
+          lastErrorMessage = `HTTP 403: Akses ditolak (${parsedMsg})`;
+          break;
+        } else if (res.status === 429) {
+          lastErrorMessage = 'HTTP 429: Kuota habis / Rate Limit tercapai';
+          break;
+        } else {
+          lastErrorMessage = `HTTP ${res.status}: ${parsedMsg}`;
+          break;
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          lastErrorMessage = 'Connection timeout (10s)';
+        } else {
+          lastErrorMessage = err.message || 'Gagal tersambung (Network / CORS Error)';
+        }
+        break;
       }
     }
   }
@@ -215,84 +272,98 @@ async function callSingleChatRequest(
   timeoutMs: number
 ): Promise<string | null> {
   const candidates = getEndpointCandidates('/chat/completions');
+  const modelsToTry = [
+    model,
+    ...(model !== 'ag/gemini-3.8-flash' ? ['ag/gemini-3.8-flash'] : []),
+    ...(model !== 'gpt-4o-mini' ? ['gpt-4o-mini'] : []),
+  ];
 
   for (const endpoint of candidates) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    for (const targetModel of modelsToTry) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`,
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          temperature: 0.7,
-          max_tokens: maxTokens,
-        }),
-      });
-      clearTimeout(timeoutId);
-
-      const contentType = res.headers.get('content-type') || '';
-      if (contentType.includes('text/html') || res.status === 404) {
-        continue;
-      }
-
-      if (!res.ok) {
-        console.warn(`AI Gateway (${model}) response error on ${endpoint}:`, res.status);
-        continue;
-      }
-
-      // Mark verified prefix
-      if (endpoint.startsWith('/api/ai')) {
-        verifiedPrefix = '/api/ai';
-      }
-
-      const text = await res.text();
-
-      // 1. Try standard JSON response
       try {
-        const data = JSON.parse(text);
-        const content = data.choices?.[0]?.message?.content;
-        if (typeof content === 'string' && content.trim().length > 0) {
-          return content.trim();
-        }
-      } catch {
-        // Response is not standard JSON (likely SSE stream)
-      }
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey.trim()}`,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: targetModel,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+            temperature: 0.7,
+            max_tokens: maxTokens,
+          }),
+        });
+        clearTimeout(timeoutId);
 
-      // 2. Parse Server-Sent Events (SSE) chunks: "data: {...}"
-      const lines = text.split('\n');
-      let fullContent = '';
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('data:') && !trimmed.includes('[DONE]')) {
-          const jsonStr = trimmed.replace(/^data:\s*/, '');
-          try {
-            const chunk = JSON.parse(jsonStr);
-            const delta = chunk.choices?.[0]?.delta?.content || chunk.choices?.[0]?.text || '';
-            fullContent += delta;
-          } catch {
-            // Ignore invalid JSON chunks
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('text/html')) {
+          break; // Try next endpoint
+        }
+
+        if (!res.ok) {
+          if (res.status === 404) {
+            continue; // Try next model candidate
+          }
+          console.warn(`AI Gateway (${targetModel}) response error on ${endpoint}:`, res.status);
+          continue;
+        }
+
+        // Mark verified prefix and model
+        if (endpoint.startsWith('/api/ai')) {
+          verifiedPrefix = '/api/ai';
+        }
+        if (targetModel !== model) {
+          saveAiConfig({ model: targetModel });
+        }
+
+        const text = await res.text();
+
+        // 1. Try standard JSON response
+        try {
+          const data = JSON.parse(text);
+          const content = data.choices?.[0]?.message?.content;
+          if (typeof content === 'string' && content.trim().length > 0) {
+            return content.trim();
+          }
+        } catch {
+          // Response is not standard JSON (likely SSE stream)
+        }
+
+        // 2. Parse Server-Sent Events (SSE) chunks: "data: {...}"
+        const lines = text.split('\n');
+        let fullContent = '';
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data:') && !trimmed.includes('[DONE]')) {
+            const jsonStr = trimmed.replace(/^data:\s*/, '');
+            try {
+              const chunk = JSON.parse(jsonStr);
+              const delta = chunk.choices?.[0]?.delta?.content || chunk.choices?.[0]?.text || '';
+              fullContent += delta;
+            } catch {
+              // Ignore invalid JSON chunks
+            }
           }
         }
-      }
 
-      if (fullContent.trim().length > 0) {
-        return fullContent.trim();
-      }
+        if (fullContent.trim().length > 0) {
+          return fullContent.trim();
+        }
 
-      return null;
-    } catch (err) {
-      clearTimeout(timeoutId);
-      console.warn(`AI Gateway request to ${endpoint} failed:`, err);
+        return null;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.warn(`AI Gateway request to ${endpoint} failed:`, err);
+        break; // Network failed on this endpoint, try next endpoint candidate
+      }
     }
   }
 
