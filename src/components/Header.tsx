@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { ResumeData, AtsScoreResult } from '../types/resume';
-import { Download, Upload, Printer, Bot, ChevronRight, CheckCircle2, XCircle, Loader2, RefreshCw, X, ShieldCheck, Cpu, Check, RotateCcw, Settings, Eye, EyeOff } from 'lucide-react';
+import { Download, Upload, Printer, Bot, ChevronRight, CheckCircle2, XCircle, Loader2, RefreshCw, X, ShieldCheck, Cpu, Check, RotateCcw, Settings, Eye, EyeOff, Linkedin } from 'lucide-react';
 import { charlesBloombergResume, sophiaChenTechResume } from '../data/sampleResumes';
 import { checkAiStatus, getAiConfig, saveAiConfig, resetAiConfig, AiStatusResult } from '../services/aiService';
+import { LinkedInImportModal } from './modals/LinkedInImportModal';
 
 interface HeaderProps {
   resume: ResumeData;
@@ -34,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [editApiKey, setEditApiKey] = useState(aiConfig.apiKey);
   const [editBaseUrl, setEditBaseUrl] = useState(aiConfig.baseUrl === '/api/ai' ? '' : aiConfig.baseUrl);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showLinkedInModal, setShowLinkedInModal] = useState(false);
   const [hasBackup, setHasBackup] = useState<boolean>(() => {
     try {
       return !!localStorage.getItem('resumecraft_backup_draft');
@@ -165,6 +167,16 @@ export const Header: React.FC<HeaderProps> = ({
         }
       };
     }
+  };
+
+  const handleApplyLinkedInResume = (importedResume: ResumeData) => {
+    try {
+      localStorage.setItem('resumecraft_backup_draft', JSON.stringify(resume));
+      setHasBackup(true);
+    } catch (e) {
+      console.warn('Failed to backup current resume:', e);
+    }
+    setResume(importedResume);
   };
 
   const handlePrintPdf = () => {
@@ -555,6 +567,17 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Divider */}
           <div className="h-4 w-px bg-slate-200 mx-0.5 hidden sm:block flex-shrink-0" />
 
+          {/* LinkedIn AI Import Button */}
+          <button
+            type="button"
+            onClick={() => setShowLinkedInModal(true)}
+            className="h-8 px-2.5 bg-blue-50/80 hover:bg-blue-100 text-[#0A66C2] border border-blue-200/80 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs active:scale-95 flex-shrink-0 whitespace-nowrap"
+            title="Import profil langsung dari LinkedIn dengan bantuan AI"
+          >
+            <Linkedin className="w-3.5 h-3.5 fill-current" />
+            <span className="hidden sm:inline">LinkedIn</span>
+          </button>
+
           {/* Action Controls */}
           <input
             type="file"
@@ -592,6 +615,14 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
       </div>
+
+      {/* LinkedIn Import Modal */}
+      <LinkedInImportModal
+        isOpen={showLinkedInModal}
+        onClose={() => setShowLinkedInModal(false)}
+        onApplyResume={handleApplyLinkedInResume}
+        currentDesign={resume.design}
+      />
     </header>
   );
 };
