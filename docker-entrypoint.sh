@@ -1,7 +1,6 @@
 #!/bin/sh
 set -e
 
-CLIENT_BASE_URL="${VITE_AI_BASE_URL:-/api/ai}"
 HAS_SERVER_AUTH="false"
 
 # If VITE_AI_BASE_URL is set to a remote or local gateway, dynamically update Nginx upstream proxy
@@ -15,9 +14,6 @@ if [ -n "$VITE_AI_BASE_URL" ] && echo "$VITE_AI_BASE_URL" | grep -q "^http"; the
       -e "s|proxy_set_header Host .*|proxy_set_header Host ${TARGET_HOST};|g" \
       /etc/nginx/conf.d/default.conf && rm -f /etc/nginx/conf.d/default.conf.bak
   fi
-
-  # Mask remote gateway URL as /api/ai in frontend to completely protect private IPs & subdomains
-  CLIENT_BASE_URL="/api/ai"
 fi
 
 # If VITE_AI_API_KEY is provided in container environment, inject it into Nginx server-side proxy
@@ -31,10 +27,12 @@ if [ -n "$VITE_AI_API_KEY" ]; then
   fi
 fi
 
-# Generate runtime env-config.js dynamically WITHOUT exposing secret API key or private URLs
+# Generate runtime env-config.js dynamically
+# Note: VITE_AI_BASE_URL and VITE_AI_API_KEY are deliberately left blank in client env-config
+# so default server credentials & internal URLs are never exposed. Users can still input custom ones in UI.
 cat <<EOF > /usr/share/nginx/html/env-config.js
 window.__ENV__ = {
-  VITE_AI_BASE_URL: "${CLIENT_BASE_URL}",
+  VITE_AI_BASE_URL: "",
   VITE_AI_MODEL: "${VITE_AI_MODEL:-ag/gemini-3.8-flash}",
   VITE_AI_SERVER_AUTH: ${HAS_SERVER_AUTH}
 };

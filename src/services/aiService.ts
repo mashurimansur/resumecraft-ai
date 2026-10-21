@@ -26,8 +26,8 @@ export function getAiConfig(): AiConfig {
   const isServerAuth = Boolean(runtimeEnv.VITE_AI_SERVER_AUTH);
 
   return {
-    baseUrl: (localConfig.baseUrl || runtimeEnv.VITE_AI_BASE_URL || import.meta.env.VITE_AI_BASE_URL || '/api/ai').trim(),
-    apiKey: (localConfig.apiKey || runtimeEnv.VITE_AI_API_KEY || import.meta.env.VITE_AI_API_KEY || '').trim(),
+    baseUrl: (localConfig.baseUrl || runtimeEnv.VITE_AI_BASE_URL || '').trim(),
+    apiKey: (localConfig.apiKey || runtimeEnv.VITE_AI_API_KEY || '').trim(),
     model: (localConfig.model || runtimeEnv.VITE_AI_MODEL || import.meta.env.VITE_AI_MODEL || 'ag/gemini-3.8-flash').trim(),
     isServerAuth,
   };
@@ -67,27 +67,27 @@ export function getEndpointCandidates(path: string): string[] {
     candidates.push(verifiedUrl);
   }
 
-  // 1. Explicit relative path configured (e.g. /api/ai or /api/9router)
-  if (config.baseUrl.startsWith('/')) {
-    const relBase = config.baseUrl.replace(/\/+$/, '');
-    const relUrl = `${relBase}${cleanPath}`;
-    if (!candidates.includes(relUrl)) candidates.push(relUrl);
-    return candidates;
+  // 1. Explicit custom path configured by user (e.g. /api/ai, https://api.openai.com/v1, or custom 9router)
+  if (config.baseUrl) {
+    if (config.baseUrl.startsWith('/')) {
+      const relBase = config.baseUrl.replace(/\/+$/, '');
+      const relUrl = `${relBase}${cleanPath}`;
+      if (!candidates.includes(relUrl)) candidates.push(relUrl);
+    } else {
+      const cleanBase = config.baseUrl.replace(/\/+$/, '');
+      const directUrl = `${cleanBase}${cleanPath}`;
+      if (!candidates.includes(directUrl)) {
+        candidates.push(directUrl);
+      }
+    }
   }
 
-  // 2. Local reverse proxy (/api/ai)
+  // 2. Default local reverse proxy (/api/ai)
   // Available in Vite dev (vite.config.ts) and Docker Nginx (nginx.conf)
   // Guarantees NO CORS preflight errors and masks the remote AI URL
   const proxyUrl = `/api/ai${cleanPath}`;
   if (!candidates.includes(proxyUrl)) {
     candidates.push(proxyUrl);
-  }
-
-  // 3. Direct remote URL (for static hosting or direct browser access)
-  const cleanBase = (config.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '');
-  const directUrl = `${cleanBase}${cleanPath}`;
-  if (!candidates.includes(directUrl)) {
-    candidates.push(directUrl);
   }
 
   return candidates;

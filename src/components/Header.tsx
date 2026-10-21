@@ -32,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [showConfigEdit, setShowConfigEdit] = useState(false);
   const [editModel, setEditModel] = useState(aiConfig.model);
   const [editApiKey, setEditApiKey] = useState(aiConfig.apiKey);
-  const [editBaseUrl, setEditBaseUrl] = useState(aiConfig.baseUrl);
+  const [editBaseUrl, setEditBaseUrl] = useState(aiConfig.baseUrl === '/api/ai' ? '' : aiConfig.baseUrl);
   const [showApiKey, setShowApiKey] = useState(false);
   const [hasBackup, setHasBackup] = useState<boolean>(() => {
     try {
@@ -85,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
     const updated = getAiConfig();
     setEditModel(updated.model);
     setEditApiKey(updated.apiKey);
-    setEditBaseUrl(updated.baseUrl);
+    setEditBaseUrl(updated.baseUrl === '/api/ai' ? '' : updated.baseUrl);
   };
 
   const handleSaveAiConfig = async (e: React.FormEvent) => {
@@ -104,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
     const def = getAiConfig();
     setEditModel(def.model);
     setEditApiKey(def.apiKey);
-    setEditBaseUrl(def.baseUrl);
+    setEditBaseUrl(def.baseUrl === '/api/ai' ? '' : def.baseUrl);
     setShowConfigEdit(false);
     await refreshAiStatus();
   };
@@ -360,14 +360,16 @@ export const Header: React.FC<HeaderProps> = ({
                           <span className="text-blue-700 font-mono font-bold">{aiStatus.model}</span>
                         </div>
 
-                        {aiConfig.isServerAuth && !aiConfig.apiKey && (
-                          <div className="flex items-center justify-between text-slate-600">
-                            <span className="flex items-center gap-1.5 font-sans text-slate-500 font-medium">
-                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Kredensial:
-                            </span>
-                            <span className="text-emerald-700 font-sans font-semibold">Tersimpan aman di server</span>
-                          </div>
-                        )}
+                        <div className="flex items-center justify-between text-slate-600">
+                          <span className="flex items-center gap-1.5 font-sans text-slate-500 font-medium">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Gateway:
+                          </span>
+                          <span className="text-emerald-700 font-sans font-semibold">
+                            {aiConfig.isServerAuth && !aiConfig.apiKey && (!aiConfig.baseUrl || aiConfig.baseUrl === '/api/ai')
+                              ? 'Default container (Aman & Privat)'
+                              : 'Kustom (Disimpan di browser)'}
+                          </span>
+                        </div>
 
                         {aiStatus.latencyMs !== undefined && (
                           <div className="flex items-center justify-between text-slate-600">
@@ -468,15 +470,18 @@ export const Header: React.FC<HeaderProps> = ({
 
                       <div>
                         <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                          Base URL (Opsional)
+                          Base URL (Opsional) {aiConfig.isServerAuth && !editBaseUrl && <span className="text-emerald-600 font-normal">(Default server)</span>}
                         </label>
                         <input
                           type="text"
                           value={editBaseUrl}
                           onChange={(e) => setEditBaseUrl(e.target.value)}
-                          placeholder="/api/ai (Default proxy container)"
+                          placeholder={aiConfig.isServerAuth ? "Dikelola aman di server (kosongkan jika pakai bawaan)" : "https://api.openai.com/v1"}
                           className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-slate-800"
                         />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          ✨ Kosongkan jika ingin menggunakan gateway default server, atau masukkan URL jika ingin menggunakan akun 9router / OpenAI pribadi Anda.
+                        </p>
                       </div>
 
                       <div className="flex gap-2 pt-1">
