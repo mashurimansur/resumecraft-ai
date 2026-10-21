@@ -199,6 +199,11 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
           continue;
         }
 
+        if (res.status === 502 || res.status === 504) {
+          lastErrorMessage = `HTTP ${res.status}: Bad Gateway (Upstream AI gateway tidak dapat dihubungi dari container)`;
+          break;
+        }
+
         if (res.status === 401) {
           lastErrorMessage = 'HTTP 401: API Key tidak valid / Unauthorized';
           break;
