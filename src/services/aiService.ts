@@ -132,7 +132,7 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
       const testModel = modelsToTest[i];
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
 
         const res = await fetch(endpoint, {
           method: 'POST',
@@ -214,7 +214,7 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
         }
       } catch (err: any) {
         if (err.name === 'AbortError') {
-          lastErrorMessage = 'Connection timeout (10s)';
+          lastErrorMessage = 'Connection timeout (20s)';
         } else {
           lastErrorMessage = err.message || 'Gagal tersambung (Network / CORS Error)';
         }
@@ -378,14 +378,14 @@ async function call9RouterChat(systemPrompt: string, userPrompt: string, maxToke
 
   const configuredModel = config.model || 'gpt-4o-mini';
 
-  // Attempt configured model (15s timeout)
+  // Attempt configured model (35s timeout)
   const result = await callSingleChatRequest(
     config.apiKey,
     configuredModel,
     systemPrompt,
     userPrompt,
     maxTokens,
-    15000
+    35000
   );
 
   return result;
