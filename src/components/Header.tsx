@@ -433,6 +433,20 @@ export const Header: React.FC<HeaderProps> = ({
                           </button>
                           <button
                             type="button"
+                            onClick={() => setEditModel('gemini/gemini-3.8-flash')}
+                            className="text-[10px] text-blue-600 hover:underline px-1.5 py-0.5 bg-blue-50 rounded"
+                          >
+                            + gemini/gemini-3.8-flash
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditModel('gemini/gemini-3.5-flash-lite')}
+                            className="text-[10px] text-blue-600 hover:underline px-1.5 py-0.5 bg-blue-50 rounded"
+                          >
+                            + gemini-3.5-flash-lite
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setEditModel('gpt-4o-mini')}
                             className="text-[10px] text-blue-600 hover:underline px-1.5 py-0.5 bg-blue-50 rounded"
                           >

@@ -23,6 +23,8 @@ if [ -n "$VITE_AI_API_KEY" ]; then
   if [ -f /etc/nginx/conf.d/default.conf ]; then
     sed -i.bak \
       -e "s|\"\" \"\";|\"\" \"Bearer ${VITE_AI_API_KEY}\";|g" \
+      -e "s|\"Bearer \" \"\";|\"Bearer \" \"Bearer ${VITE_AI_API_KEY}\";|g" \
+      -e "s|\"Bearer\" \"\";|\"Bearer\" \"Bearer ${VITE_AI_API_KEY}\";|g" \
       /etc/nginx/conf.d/default.conf && rm -f /etc/nginx/conf.d/default.conf.bak
   fi
 fi

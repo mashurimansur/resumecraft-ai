@@ -118,35 +118,102 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
   }
 
   const startTime = performance.now();
-  const candidates = getEndpointCandidates('/chat/completions');
-  let lastErrorMessage = 'Gagal tersambung ke endpoint AI';
-  let lastStatus = 0;
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+  };
+  if (config.apiKey && config.apiKey.trim()) {
+    headers['Authorization'] = `Bearer ${config.apiKey.trim()}`;
+  }
 
-  // Potential models to try if the current model gives 404 (model_not_found)
+  let lastErrorMessage = 'Gagal tersambung ke endpoint AI';
+
+  // 1. Primary Health Check: Test GET /models (standard OpenAI endpoint, fast, 0 token usage, validates key & gateway)
+  const modelCandidates = getEndpointCandidates('/models');
+  for (const mEndpoint of modelCandidates) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const res = await fetch(mEndpoint, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      const contentType = res.headers.get('content-type') || '';
+      // If SPA HTML fallback, skip to next candidate
+      if (contentType.includes('text/html')) {
+        continue;
+      }
+
+      if (res.ok) {
+        if (mEndpoint.startsWith('/api/ai')) {
+          verifiedPrefix = '/api/ai';
+        } else {
+          verifiedPrefix = (config.baseUrl || '').replace(/\/+$/, '');
+        }
+
+        const latencyMs = Math.round(performance.now() - startTime);
+        return {
+          status: 'connected',
+          latencyMs,
+          message: `AI Gateway tersambung (${latencyMs}ms)`,
+          model: config.model,
+          baseUrl: config.baseUrl,
+        };
+      }
+
+      if (res.status === 401) {
+        return {
+          status: 'disconnected',
+          message: 'HTTP 401: API Key tidak valid / Unauthorized',
+          model: config.model,
+          baseUrl: config.baseUrl,
+        };
+      } else if (res.status === 403) {
+        return {
+          status: 'disconnected',
+          message: 'HTTP 403: Akses ditolak',
+          model: config.model,
+          baseUrl: config.baseUrl,
+        };
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        lastErrorMessage = 'Connection timeout (15s)';
+      } else {
+        lastErrorMessage = err.message || 'Gagal tersambung (Network Error)';
+      }
+    }
+  }
+
+  // 2. Secondary Health Check: Test /chat/completions (for proxies without /models endpoint)
+  const chatCandidates = getEndpointCandidates('/chat/completions');
   const modelsToTest = [
     config.model,
     ...(config.model !== 'ag/gemini-3.8-flash' ? ['ag/gemini-3.8-flash'] : []),
+    ...(config.model !== 'gemini/gemini-3.8-flash' ? ['gemini/gemini-3.8-flash'] : []),
     ...(config.model !== 'gemini-2.0-flash' ? ['gemini-2.0-flash'] : []),
     ...(config.model !== 'gpt-4o-mini' ? ['gpt-4o-mini'] : []),
   ];
 
-  for (const endpoint of candidates) {
+  for (const endpoint of chatCandidates) {
     for (let i = 0; i < modelsToTest.length; i++) {
       const testModel = modelsToTest[i];
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-        const headers: Record<string, string> = {
+        const chatHeaders: Record<string, string> = {
           'Content-Type': 'application/json',
         };
         if (config.apiKey && config.apiKey.trim()) {
-          headers['Authorization'] = `Bearer ${config.apiKey.trim()}`;
+          chatHeaders['Authorization'] = `Bearer ${config.apiKey.trim()}`;
         }
 
         const res = await fetch(endpoint, {
           method: 'POST',
-          headers,
+          headers: chatHeaders,
           body: JSON.stringify({
             model: testModel,
             messages: [{ role: 'user', content: 'hi' }],
@@ -157,8 +224,6 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
         clearTimeout(timeoutId);
 
         const contentType = res.headers.get('content-type') || '';
-
-        // If response is HTML (e.g. SPA fallback on static host without Nginx proxy), try next endpoint
         if (contentType.includes('text/html')) {
           break;
         }
@@ -166,14 +231,12 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
         const latencyMs = Math.round(performance.now() - startTime);
 
         if (res.ok) {
-          // Success! Set verified prefix
           if (endpoint.startsWith('/api/ai')) {
             verifiedPrefix = '/api/ai';
           } else {
             verifiedPrefix = (config.baseUrl || '').replace(/\/+$/, '');
           }
 
-          // If fallback model succeeded instead of initial model, save it so future calls use it
           if (testModel !== config.model) {
             saveAiConfig({ model: testModel });
           }
@@ -189,8 +252,7 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
           };
         }
 
-        // Non-200 response from AI Gateway
-        lastStatus = res.status;
+        // Non-200 response
         const errText = await res.text();
         let parsedMsg = errText.slice(0, 120);
         try {
@@ -200,7 +262,6 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
           }
         } catch {}
 
-        // If 404 (model_not_found), try next model candidate
         if (res.status === 404 || parsedMsg.toLowerCase().includes('model_not_found') || parsedMsg.toLowerCase().includes('credentials')) {
           lastErrorMessage = `Model "${testModel}" tidak aktif di gateway ini (${parsedMsg})`;
           continue;
@@ -235,38 +296,6 @@ export async function checkAiStatus(): Promise<AiStatusResult> {
     }
   }
 
-  // Secondary Check: If /chat/completions failed, check /models as fallback
-  if (lastStatus === 404 || lastStatus === 0) {
-    const modelCandidates = getEndpointCandidates('/models');
-    for (const mEndpoint of modelCandidates) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch(mEndpoint, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${config.apiKey.trim()}`,
-          },
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        const contentType = res.headers.get('content-type') || '';
-        if (contentType.includes('text/html') || res.status === 404) continue;
-
-        if (res.ok) {
-          const latencyMs = Math.round(performance.now() - startTime);
-          return {
-            status: 'connected',
-            latencyMs,
-            message: `AI Gateway connected (Model "${config.model}")`,
-            model: config.model,
-            baseUrl: config.baseUrl,
-          };
-        }
-      } catch {}
-    }
-  }
-
   return {
     status: 'disconnected',
     message: lastErrorMessage,
@@ -287,6 +316,9 @@ async function callSingleChatRequest(
   const modelsToTry = [
     model,
     ...(model !== 'ag/gemini-3.8-flash' ? ['ag/gemini-3.8-flash'] : []),
+    ...(model !== 'gemini/gemini-3.8-flash' ? ['gemini/gemini-3.8-flash'] : []),
+    ...(model !== 'gemini/gemini-3.5-flash-lite' ? ['gemini/gemini-3.5-flash-lite'] : []),
+    ...(model !== 'gemini-2.0-flash' ? ['gemini-2.0-flash'] : []),
     ...(model !== 'gpt-4o-mini' ? ['gpt-4o-mini'] : []),
   ];
 
