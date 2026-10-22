@@ -1,9 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { ResumeData, AtsScoreResult } from '../types/resume';
-import { Download, Upload, Printer, Bot, ChevronRight, CheckCircle2, XCircle, Loader2, RefreshCw, X, ShieldCheck, Cpu, Check, RotateCcw, Settings, Eye, EyeOff, Linkedin } from 'lucide-react';
+import { Download, Upload, Printer, Bot, ChevronRight, ChevronDown, FileCode, CheckCircle2, XCircle, Loader2, RefreshCw, X, ShieldCheck, Cpu, Check, RotateCcw, Settings, Eye, EyeOff, Linkedin } from 'lucide-react';
 import { charlesBloombergResume, sophiaChenTechResume } from '../data/sampleResumes';
 import { checkAiStatus, getAiConfig, saveAiConfig, resetAiConfig, AiStatusResult } from '../services/aiService';
 import { LinkedInImportModal } from './modals/LinkedInImportModal';
+
+export const APP_VERSION = 'v1.1.1';
 
 interface HeaderProps {
   resume: ResumeData;
@@ -21,6 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const importDropdownRef = useRef<HTMLDivElement>(null);
   const aiConfig = getAiConfig();
 
   const [aiStatus, setAiStatus] = useState<AiStatusResult>({
@@ -36,6 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [editBaseUrl, setEditBaseUrl] = useState(aiConfig.baseUrl === '/api/ai' ? '' : aiConfig.baseUrl);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showLinkedInModal, setShowLinkedInModal] = useState(false);
+  const [showImportDropdown, setShowImportDropdown] = useState(false);
   const [hasBackup, setHasBackup] = useState<boolean>(() => {
     try {
       return !!localStorage.getItem('resumecraft_backup_draft');
@@ -130,14 +134,17 @@ export const Header: React.FC<HeaderProps> = ({
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         setShowStatusPopover(false);
       }
+      if (importDropdownRef.current && !importDropdownRef.current.contains(e.target as Node)) {
+        setShowImportDropdown(false);
+      }
     };
-    if (showStatusPopover) {
+    if (showStatusPopover || showImportDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showStatusPopover]);
+  }, [showStatusPopover, showImportDropdown]);
 
 
   const handleExportJson = () => {
@@ -204,6 +211,12 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="font-bold text-slate-900 text-sm tracking-tight hidden sm:inline whitespace-nowrap">
               ResumeCraft<span className="text-blue-600 font-extrabold ml-0.5">AI</span>
+            </span>
+            <span
+              className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded border border-slate-200 shadow-2xs select-none transition-colors hidden sm:inline-block"
+              title={`Versi Aplikasi: ${APP_VERSION}`}
+            >
+              {APP_VERSION}
             </span>
             <ChevronRight className="w-3.5 h-3.5 text-slate-300 hidden sm:inline flex-shrink-0" />
             <input
@@ -567,18 +580,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Divider */}
           <div className="h-4 w-px bg-slate-200 mx-0.5 hidden sm:block flex-shrink-0" />
 
-          {/* LinkedIn AI Import Button */}
-          <button
-            type="button"
-            onClick={() => setShowLinkedInModal(true)}
-            className="h-8 px-2.5 bg-blue-50/80 hover:bg-blue-100 text-[#0A66C2] border border-blue-200/80 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs active:scale-95 flex-shrink-0 whitespace-nowrap"
-            title="Import profil langsung dari LinkedIn dengan bantuan AI"
-          >
-            <Linkedin className="w-3.5 h-3.5 fill-current" />
-            <span className="hidden sm:inline">LinkedIn</span>
-          </button>
-
-          {/* Action Controls */}
+          {/* Hidden JSON file input */}
           <input
             type="file"
             ref={fileInputRef}
@@ -587,14 +589,74 @@ export const Header: React.FC<HeaderProps> = ({
             className="hidden"
           />
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="h-8 px-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors flex-shrink-0 whitespace-nowrap"
-            title="Import Resume JSON"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Import</span>
-          </button>
+          {/* Consolidated Import Dropdown */}
+          <div className="relative" ref={importDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setShowImportDropdown((prev) => !prev)}
+              className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all flex-shrink-0 whitespace-nowrap border shadow-2xs active:scale-95 ${
+                showImportDropdown
+                  ? 'bg-blue-50 text-blue-700 border-blue-300 ring-1 ring-blue-300'
+                  : 'text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border-slate-200'
+              }`}
+              title="Pilihan Import Data Resume"
+            >
+              <Upload className="w-3.5 h-3.5 text-slate-500" />
+              <span>Import</span>
+              <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showImportDropdown ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showImportDropdown && (
+              <div className="absolute right-0 top-full mt-1.5 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImportDropdown(false);
+                    setShowLinkedInModal(true);
+                  }}
+                  className="w-full text-left p-2.5 hover:bg-blue-50/70 rounded-lg flex items-start gap-2.5 transition-colors group"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-[#0A66C2] text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
+                    <Linkedin className="w-4 h-4 fill-current" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                      Profil LinkedIn
+                      <span className="text-[9px] font-extrabold px-1.5 py-0.2 bg-blue-100 text-blue-700 rounded-full uppercase">
+                        AI
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                      Ekstrak otomatis dari PDF "Save to PDF" atau teks profil LinkedIn dengan AI
+                    </p>
+                  </div>
+                </button>
+
+                <div className="h-px bg-slate-100 my-1" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImportDropdown(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="w-full text-left p-2.5 hover:bg-slate-50 rounded-lg flex items-start gap-2.5 transition-colors group"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-slate-200 transition-colors">
+                    <FileCode className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900 text-xs">
+                      File Resume JSON
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                      Muat file cadangan .json ResumeCraft yang pernah Anda unduh sebelumnya
+                    </p>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={handleExportJson}
