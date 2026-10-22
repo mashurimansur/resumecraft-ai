@@ -5,7 +5,7 @@ import { charlesBloombergResume, sophiaChenTechResume } from '../data/sampleResu
 import { checkAiStatus, getAiConfig, saveAiConfig, resetAiConfig, AiStatusResult } from '../services/aiService';
 import { LinkedInImportModal } from './modals/LinkedInImportModal';
 
-export const APP_VERSION = 'v1.1.1';
+export const APP_VERSION = 'v1.1.2';
 
 interface HeaderProps {
   resume: ResumeData;
@@ -24,6 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const importDropdownRef = useRef<HTMLDivElement>(null);
+  const sampleDropdownRef = useRef<HTMLDivElement>(null);
   const aiConfig = getAiConfig();
 
   const [aiStatus, setAiStatus] = useState<AiStatusResult>({
@@ -40,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [showApiKey, setShowApiKey] = useState(false);
   const [showLinkedInModal, setShowLinkedInModal] = useState(false);
   const [showImportDropdown, setShowImportDropdown] = useState(false);
+  const [showSampleDropdown, setShowSampleDropdown] = useState(false);
   const [hasBackup, setHasBackup] = useState<boolean>(() => {
     try {
       return !!localStorage.getItem('resumecraft_backup_draft');
@@ -137,14 +139,17 @@ export const Header: React.FC<HeaderProps> = ({
       if (importDropdownRef.current && !importDropdownRef.current.contains(e.target as Node)) {
         setShowImportDropdown(false);
       }
+      if (sampleDropdownRef.current && !sampleDropdownRef.current.contains(e.target as Node)) {
+        setShowSampleDropdown(false);
+      }
     };
-    if (showStatusPopover || showImportDropdown) {
+    if (showStatusPopover || showImportDropdown || showSampleDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showStatusPopover, showImportDropdown]);
+  }, [showStatusPopover, showImportDropdown, showSampleDropdown]);
 
 
   const handleExportJson = () => {
@@ -226,8 +231,12 @@ export const Header: React.FC<HeaderProps> = ({
               className="font-semibold text-slate-800 bg-transparent hover:bg-slate-100 px-1.5 py-0.5 rounded border border-transparent hover:border-slate-300 focus:bg-white focus:border-blue-500 focus:outline-none w-28 sm:w-40 text-xs truncate"
               title="Click to rename resume"
             />
-            <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0" title="Semua perubahan otomatis tersimpan di browser Anda">
-              <Check className="w-2.5 h-2.5 text-emerald-600" /> Tersimpan
+            <span
+              className="hidden sm:inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+              title="Semua perubahan otomatis tersimpan di browser Anda"
+            >
+              <Check className="w-2.5 h-2.5 text-emerald-600" />
+              <span className="hidden 2xl:inline">Tersimpan</span>
             </span>
           </div>
         </div>
@@ -235,7 +244,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Right: Consolidated Controls Toolbar */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Sample Switcher with Safety Backup & Confirmation */}
-          <div className="hidden xl:flex items-center gap-1.5 flex-shrink-0">
+          <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0">
             {hasBackup && (
               <div className="flex items-center bg-amber-50 hover:bg-amber-100/70 border border-amber-300 rounded-lg p-0.5 shadow-2xs transition-colors">
                 <button
@@ -260,44 +269,90 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
-              <span className="text-[10px] text-slate-400 font-bold px-1.5 hidden 2xl:inline">
-                Contoh:
-              </span>
+            {/* Sample Profile Switcher Dropdown */}
+            <div className="relative" ref={sampleDropdownRef}>
               <button
-                onClick={() => handleLoadSample(charlesBloombergResume, 'Executive')}
-                className={`px-2 py-1 rounded text-xs transition-colors ${
-                  resume.id === charlesBloombergResume.id ? 'bg-white text-slate-900 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                type="button"
+                onClick={() => setShowSampleDropdown((prev) => !prev)}
+                className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all flex-shrink-0 whitespace-nowrap border shadow-2xs active:scale-95 ${
+                  showSampleDropdown
+                    ? 'bg-slate-100 text-slate-900 border-slate-300 ring-1 ring-slate-300'
+                    : 'text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border-slate-200'
                 }`}
-                title="Muat contoh resume profil Executive"
+                title="Pilih contoh profil resume atau reset data"
               >
-                Executive
+                <span>Contoh</span>
+                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showSampleDropdown ? 'rotate-180' : ''}`} />
               </button>
-              <button
-                onClick={() => handleLoadSample(sophiaChenTechResume, 'Developer')}
-                className={`px-2 py-1 rounded text-xs transition-colors ${
-                  resume.id === sophiaChenTechResume.id ? 'bg-white text-slate-900 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-                title="Muat contoh resume profil Developer"
-              >
-                Developer
-              </button>
-              <button
-                onClick={() => {
-                  if (window.confirm('Reset data resume dan kembalikan ke template default? Draft Anda saat ini akan di-backup.')) {
-                    try {
-                      localStorage.setItem('resumecraft_backup_draft', JSON.stringify(resume));
-                      setHasBackup(true);
-                    } catch {}
-                    localStorage.removeItem('resumecraft_resume_data_v1');
-                    setResume(charlesBloombergResume);
-                  }
-                }}
-                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-200/80 rounded transition-colors"
-                title="Reset data ke default"
-              >
-                <RotateCcw className="w-3 h-3" />
-              </button>
+
+              {showSampleDropdown && (
+                <div className="absolute left-0 top-full mt-1.5 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
+                    Pilih Contoh Profil
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSampleDropdown(false);
+                      handleLoadSample(charlesBloombergResume, 'Executive');
+                    }}
+                    className={`w-full text-left p-2 rounded-lg flex items-center justify-between text-xs transition-colors ${
+                      resume.id === charlesBloombergResume.id ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">👔</span>
+                      <div>
+                        <div className="font-bold text-slate-900">Executive</div>
+                        <div className="text-[10px] text-slate-400 font-normal">Charles Bloomberg (Startup & Consultant)</div>
+                      </div>
+                    </div>
+                    {resume.id === charlesBloombergResume.id && <Check className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSampleDropdown(false);
+                      handleLoadSample(sophiaChenTechResume, 'Developer');
+                    }}
+                    className={`w-full text-left p-2 rounded-lg flex items-center justify-between text-xs transition-colors ${
+                      resume.id === sophiaChenTechResume.id ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">💻</span>
+                      <div>
+                        <div className="font-bold text-slate-900">Developer</div>
+                        <div className="text-[10px] text-slate-400 font-normal">Sophia Chen (Staff Software Engineer)</div>
+                      </div>
+                    </div>
+                    {resume.id === sophiaChenTechResume.id && <Check className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />}
+                  </button>
+
+                  <div className="h-px bg-slate-100 my-1" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSampleDropdown(false);
+                      if (window.confirm('Reset data resume dan kembalikan ke template default? Draft Anda saat ini akan di-backup.')) {
+                        try {
+                          localStorage.setItem('resumecraft_backup_draft', JSON.stringify(resume));
+                          setHasBackup(true);
+                        } catch {}
+                        localStorage.removeItem('resumecraft_resume_data_v1');
+                        setResume(charlesBloombergResume);
+                      }
+                    }}
+                    className="w-full text-left p-2 hover:bg-rose-50 text-slate-600 hover:text-rose-700 rounded-lg flex items-center gap-2 text-xs transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+                    <span>Reset ke Template Awal</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
