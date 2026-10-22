@@ -88,15 +88,29 @@ export const App: React.FC = () => {
   const [highlightKeywords, setHighlightKeywords] = useState<string[]>([]);
   const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
+  const isFirstRender = useRef(true);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-save resume changes to localStorage
+  // Auto-save resume changes to localStorage with debounced status animation
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_RESUME, JSON.stringify(resume));
-    } catch (e) {
-      console.warn('Failed to save resume to localStorage:', e);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
+
+    setSaveStatus('saving');
+
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY_RESUME, JSON.stringify(resume));
+      } catch (e) {
+        console.warn('Failed to save resume to localStorage:', e);
+      }
+      setSaveStatus('saved');
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [resume]);
 
   // Save active tab preference
@@ -200,6 +214,7 @@ export const App: React.FC = () => {
         setResume={setResume}
         atsScore={atsScore}
         onOpenScoreTab={() => setActiveTab('score')}
+        saveStatus={saveStatus}
       />
 
       {/* Main Tab Navigation Bar */}

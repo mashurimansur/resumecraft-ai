@@ -5,7 +5,7 @@ import { charlesBloombergResume, sophiaChenTechResume } from '../data/sampleResu
 import { checkAiStatus, getAiConfig, saveAiConfig, resetAiConfig, AiStatusResult } from '../services/aiService';
 import { LinkedInImportModal } from './modals/LinkedInImportModal';
 
-export const APP_VERSION = 'v1.1.2';
+export const APP_VERSION = 'v1.1.3';
 
 interface HeaderProps {
   resume: ResumeData;
@@ -13,13 +13,15 @@ interface HeaderProps {
   atsScore: AtsScoreResult;
   onOpenScoreTab: () => void;
   onOpenAiSettings?: () => void;
+  saveStatus?: 'saved' | 'saving';
 }
 
 export const Header: React.FC<HeaderProps> = ({
   resume,
   setResume,
   atsScore,
-  onOpenScoreTab
+  onOpenScoreTab,
+  saveStatus = 'saved'
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -231,12 +233,31 @@ export const Header: React.FC<HeaderProps> = ({
               className="font-semibold text-slate-800 bg-transparent hover:bg-slate-100 px-1.5 py-0.5 rounded border border-transparent hover:border-slate-300 focus:bg-white focus:border-blue-500 focus:outline-none w-28 sm:w-40 text-xs truncate"
               title="Click to rename resume"
             />
+            {/* Auto-save Status Badge with Animated Feedback */}
             <span
-              className="hidden sm:inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
-              title="Semua perubahan otomatis tersimpan di browser Anda"
+              className={`hidden sm:inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0 transition-all duration-300 border shadow-2xs ${
+                saveStatus === 'saving'
+                  ? 'bg-amber-50 text-amber-700 border-amber-300 animate-pulse'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+              }`}
+              title={
+                saveStatus === 'saving'
+                  ? 'Sedang menyimpan perubahan ke browser...'
+                  : 'Semua perubahan otomatis tersimpan di browser Anda'
+              }
             >
-              <Check className="w-2.5 h-2.5 text-emerald-600" />
-              <span className="hidden 2xl:inline">Tersimpan</span>
+              {saveStatus === 'saving' ? (
+                <>
+                  <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-600 flex-shrink-0" />
+                  <span className="hidden 2xl:inline font-semibold">Menyimpan...</span>
+                  <span className="2xl:hidden font-semibold">Menyimpan</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0 animate-in zoom-in-75 duration-200" />
+                  <span className="hidden 2xl:inline">Tersimpan</span>
+                </>
+              )}
             </span>
           </div>
         </div>
